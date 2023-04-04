@@ -130,5 +130,6 @@ pyre/
 kids_squeries/
 models/
 glove/
-data/
 venv/
+
+glove.6b/
