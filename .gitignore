@@ -133,3 +133,6 @@ venv/
 data/
 adult_queries/
 models/
+venv/
+
+glove.6b/

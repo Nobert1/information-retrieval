@@ -52,7 +52,7 @@ def send_request(query_dict):
             results_obj = {"url": result['url'], "description": result["description"]}
             resultsList.append(results_obj)
     
-    query_dict["results"] = resultsList
+    query_dict["google_results"] = resultsList
     results[query_dict["queries"]] = query_dict
     with open("data/adults_results.json", "w") as fp:
         json.dump(results , fp)
