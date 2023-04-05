@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-f = open("data/serp_results_with_html.json" , "rb" )
+f = open("adult_queries/non_cleaned_html.json" , "rb" )
 queries = json.load(f)
 f.close()
 
@@ -55,9 +55,9 @@ def clean_description(desc):
 
 
 def getResults(queries):
-    duplicate_dict = {}
+    duplicate_dict = queries
     for key, query in queries.items():
-        for description_key in ["bing_results", "results"]:
+        for description_key in ["bing_results", "results"]: 
             result_list = []
             for result in query[description_key]:
                 duplicate_result = result
@@ -65,6 +65,7 @@ def getResults(queries):
                     url = result["url"]
                     response = requests.get(url, timeout=5)
                     if response.status_code > 299:
+                        duplicate_result["html_text"] = ""
                         result_list.append(duplicate_result)
                         break
                     content_as_string = response.content.decode('utf-8')
@@ -107,5 +108,5 @@ def clean_up_html(queries):
 
 # results = getResults(queries)
 results = clean_up_html(queries)
-with open("data/cleaned_html_results.json", "w", encoding="utf-8") as fp:
+with open("adult_queries/cleaned_htnl.json", "w", encoding="utf-8") as fp:
     json.dump(results , fp, ensure_ascii=False)

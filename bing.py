@@ -9,14 +9,14 @@ from pprint import pprint
 import requests
 
 # Add your Bing Search V7 subscription key and endpoint to your environment variables.
-subscription_key = "ec0caedc6c3642cc97edc21e39230d6e"
+subscription_key = "60b8c76b4fb741fdbb3b875aee065a68"
 search_url = "https://api.bing.microsoft.com/v7.0/search"
 endpoint = search_url + "/bing/v7.0/search"
 
-f = open("data/actual_results.json" , "rb" )
+f = open("adult_queries/queries.json" , "rb" )
 dataset = json.load(f)
 f.close()
-child_mode_on = True
+child_mode_on = False
 # Query term(s) to search for. 
 
 # Construct a request
@@ -24,14 +24,17 @@ mkt = 'en-US'
 headers = { 'Ocp-Apim-Subscription-Key': subscription_key }
 search_term = "Microsoft Bing Search Services"
 # Call the API
-dataset_copy = dataset
-for key, data_object in dataset.items():
+dataset_copy = {}
+for data_object in dataset: #.items()
     try:
+        query = data_object["queries"]
         params = {}
+        dataset_copy[query] = {"queries": query}
+        # dataset_copy[data_object["queries"]][data_object["queries"]] = data_object["queries"]
         if child_mode_on:
-            params = { 'q': data_object["queries"], 'mkt': mkt, 'safe-search': 'strict' }
+            params = { 'q': query, 'mkt': mkt, 'safe-search': 'strict' }
         else:
-            params = { 'q': data_object["queries"], 'mkt': mkt }
+            params = { 'q': query, 'mkt': mkt }
 
         response = requests.get(search_url, headers=headers, params=params)
         response.raise_for_status()
@@ -41,8 +44,8 @@ for key, data_object in dataset.items():
             for webpage in search_results["webPages"]["value"]:
                 if webpage:
                     result_list.append({"url": webpage["url"], "description": webpage["snippet"]})
-            dataset_copy[key]["bing_results"] = result_list
-            with open("data/bing.json", "w") as fp:
+            dataset_copy[query]["bing_results"] = result_list
+            with open("adult_queries/bing.json", "w") as fp:
                 json.dump(dataset_copy , fp)
 
     except Exception as ex:

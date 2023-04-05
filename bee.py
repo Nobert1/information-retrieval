@@ -3,31 +3,21 @@
 import requests
 import json
 
-f = open("kids_queries/kids_queries_dataset_classified_with_grades.json" , "rb" )
-jsonObject = json.load(f)
-f.close()
-api_key = "315AL9D0VKT4ATHOYVZ5E3OH98V4MG1K6M9XYTUEZWZY496KDIJ51J59R7QWG7VDDHVADOFA5MNJPAP4"
-child_mode_on = True
-query_dicts = []
-i = 11
+api_key = "S3VTYQM6NL93P0J2F2ECR51UR2SXDS4VQOL8XWTLAJMLBZJBMW4J822IQ3F25154B32P5DRNR378L3EF"
+child_mode_on = False
 
-for object in jsonObject:
-    if(i > 10):
-        query_dicts.append(object)
-    i += 1
-    if i > 50:
-        break
-
-f = open("data/childs_results2.json" , "rb" )
+f = open("adult_queries/bing.json" , "rb" )
 results = json.load(f)
 f.close()
 
-def send_request(query_dict):
+results_copy = results
+
+def send_request(query):
     params = {}
     if child_mode_on:
         params = {
             "api_key": api_key,
-            "search": query_dict["queries"],
+            "search": query,
             "add_html": True,
             "nb_results": 10,
             "extra_params": "safe=active"
@@ -35,7 +25,7 @@ def send_request(query_dict):
     else:
         params = {
             "api_key": api_key,
-            "search": query_dict["queries"],
+            "search": query,
             "add_html": True,
             "nb_results": 10,
         }
@@ -52,12 +42,11 @@ def send_request(query_dict):
             results_obj = {"url": result['url'], "description": result["description"]}
             resultsList.append(results_obj)
     
-    query_dict["google_results"] = resultsList
-    results[query_dict["queries"]] = query_dict
+    results_copy[query]["results"] = resultsList
     with open("data/adults_results.json", "w") as fp:
-        json.dump(results , fp)
+        json.dump(results_copy , fp)
     
-for query_dict in query_dicts:
-    send_request(query_dict)
+for key, dict in results.items():
+    send_request(key)
 
 
