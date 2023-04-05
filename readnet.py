@@ -20,7 +20,7 @@ if __name__ == '__main__':
     root_dir = 'C:/Users/gusta/Desktop/TU Delft/Information retrieval/final project/readnet/glove/'
     # batch_size
     bs = 8
-    run_model = False
+    run_model = True
 
 
     ## MODEL CODE ##
@@ -191,7 +191,6 @@ if __name__ == '__main__':
 
     class GloveTokenizer:
         def __init__(self, num):
-            print("dir path" ,root_dir + f'glove.6B.{num}d.txt')
             words = pd.read_csv(
                 root_dir + f'glove.6B.{num}d.txt', header=None, sep=" ", quoting=csv.QUOTE_NONE, usecols=[0]
             ).values
@@ -238,16 +237,17 @@ if __name__ == '__main__':
     
     if run_model:
         snippets = ["The North Pole, also known as the Geographic North Pole or Terrestrial North Pole, is the point in the Northern Hemisphere where the Earth's axis of", "Jan 12, 2023 \u2014 The geographic North Pole is the northern point of Earth's axis of rotation. The North Pole is found in the Arctic Ocean, on constantly", "North Pole, northern end of Earth's axis, lying in the Arctic Ocean, about 450 miles (725 km) north of Greenland. This geographic North Pole does not", "Our History City Calender Parks, Trails, & Recreation Public Safety North Pole Police North Pole Fire & Ambulance North Pole Statistics Weather & Climate"]
-        tokens = []
-        for snippet in snippets:
-            snippettokens = (nltk.word_tokenize(snippet))
-            for snippettoken in snippettokens:
-                tokens.append(snippettoken)
+        # tokens = []
+        # for snippet in snippets:
+        #     snippettokens = (nltk.word_tokenize(snippet))
+        #     for snippettoken in snippettokens:
+        #         tokens.append(snippettoken)
 
         # Create vocabulary
-        tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
-        vocab = torchtext.vocab.build_vocab_from_iterator([tokens])
-        input_data = torch.tensor([vocab[token] for token in tokens]).unsqueeze(0)
+        #tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
+        # vocab = torchtext.vocab.build_vocab_from_iterator([tokens])
+        # input_data = torch.tensor([vocab[token] for token in tokens]).unsqueeze(0).unsqueeze(0)
+        input_data = prepare_txts(snippets, tokenizer)
         model = ReadNet(
             embed=embed,
             d_model=100, # 200
@@ -256,7 +256,7 @@ if __name__ == '__main__':
             n_feats_sent=0,
             n_feats_doc=0,
         )
-        model.load_state_dict(torch.load('models/tmprrrdc62n/_tmp.pth'))
+        model.load_state_dict(torch.load('models/first_run.pth')['model'])
 
         output = model.forward(input_data)
         print(output)
@@ -314,9 +314,9 @@ if __name__ == '__main__':
             p.requires_grad = False
 
         return readnet
-
     if run_model == False:
         learn = Learner(dls=get_dls(bs), model=get_model(), loss_func=MSELossFlat())
         learn.lr_find()
         learn.fit_one_cycle(1, 3e-5)
+        learn.save('first_run')
     # Result MSE is about 0.40

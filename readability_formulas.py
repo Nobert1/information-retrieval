@@ -39,7 +39,7 @@ def readability_result_to_grade(grade: str) -> int:
 
 
 if __name__ == "__main__":
-    queries = pd.read_json("data/queries.json")
+    queries = pd.read_json("kids_queries/cleaned_html_results.json")
     query_result_readability_formula_mse = pd.DataFrame()
     for _, query in queries.items():
         for search_engine_result_page in ['results', 'bing_results']:
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                              grade_pred[readability_formula].append(readability_result_to_grade(readability_results[readability_formula][1]))
                         else:
                             grade_pred[readability_formula].append(0)
-            for readability_formula in readability_formulas:
+            for readability_formula in readability_formulas:<
                 if len(grade_pred[readability_formula]) == 0:
                     continue
                 grade_true = [readability_result_to_grade(query['Grade'])] * len(grade_pred[readability_formula])
