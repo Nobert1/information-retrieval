@@ -4,10 +4,16 @@ import pandas as pd
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 from sklearn.metrics import mean_squared_error
-from typing import Dict, Tuple, List
+from scipy.stats import ttest_rel
+from typing import DefaultDict, Dict, Tuple, List
 from matplotlib import pyplot as plt
 import plotly.express as px
 from progress.bar import Bar
+import os
+# Import readability from readability
+from readability import Readability
+from collections import defaultdict
+
 nltk.download("punkt")
 
 readability_formulas_with_grade_levels = ['ari', 'dale_chall', 'flesch']
@@ -17,7 +23,7 @@ readability_formulas = readability_formulas_with_grade_levels + readability_form
 def apply_readability_formulas(text: str) -> Dict[str, Tuple[str, str]]:
     text = text.strip()
     r = Readability(text)
-    if not bool(text) or r.statistics()['num_words'] < 100 or r.statistics()['num_sentences'] == 0:
+    if not bool(text) or r.statistics()['num_sentences'] == 0:
         return {}
     
     results = {}
@@ -33,7 +39,7 @@ def apply_readability_formulas(text: str) -> Dict[str, Tuple[str, str]]:
 
 def readability_result_to_grade(grade: str) -> int:
     if type(grade) == int:
-        return grade if grade <= 14 else 14
+        return max(1, min(14, grade))
     if grade.isnumeric():
         return int(grade) if int(grade) <= 14 else 14
     if grade == "college":
@@ -42,42 +48,75 @@ def readability_result_to_grade(grade: str) -> int:
         return 14
     return 14
 
+def create_plot(html_text_grade_prediction: List[List[int]], description_grade_prediction: List[List[int]], search_engine: str, filename: str, rf: str):
+    filename_no_ext = os.path.splitext(filename)[0]
+    plot_directory = f"plots/{search_engine}/{filename_no_ext}"
+    os.makedirs(f"{plot_directory}/html_text", exist_ok=True)
+    os.makedirs(f"{plot_directory}/description", exist_ok=True)
+    fig = px.line(x=list(range(1, 15)), y=[html_text_grade_prediction.count(i) for i in range(1, 15)], title="Grade predictions for " + rf)
+    fig.write_image(f"{plot_directory}/html_text/{rf}.png")
+
+    fig = px.line(x=list(range(1, 15)), y=[description_grade_prediction.count(i) for i in range(1, 15)], title="Grade predictions for " + rf)
+    fig.write_image(f"{plot_directory}/description/{rf}.png")
+
+def create_plots(html_text_grade_predictions: DefaultDict[str, List[int]], description_grade_predictions: DefaultDict[str, List[int]], search_engine: str, filename: str):
+    for rf in readability_formulas:
+        html_text_grade_prediction = html_text_grade_predictions[rf]
+        description_grade_prediction = description_grade_predictions[rf]
+        create_plot(html_text_grade_prediction, description_grade_prediction, search_engine, filename, rf)
+
+def perform_ttest(html_text_grade_prediction: List[int], description_grade_prediction: List[int]):
+    return ttest_rel(html_text_grade_prediction, description_grade_prediction, nan_policy='omit', alternative='two-sided')
+
+def perform_ttests(html_text_grade_predictions: DefaultDict[str, List[int]], description_grade_predictions: DefaultDict[str, List[int]], search_engine: str, filename: str):
+    ttests: Dict[str, int] = {}
+    for rf in readability_formulas:
+        if rf == 'smog':
+            continue
+        html_text_grade_prediction = html_text_grade_predictions[rf]
+        description_grade_prediction = description_grade_predictions[rf]
+        ttests[rf] = perform_ttest(html_text_grade_prediction, description_grade_prediction)
+    os.makedirs(f"ttests/{search_engine}", exist_ok=True)
+    with open(f"ttests/{search_engine}/{os.path.splitext(filename)[0]}.csv", 'w', newline='') as f:
+        import csv
+        header = ['rf', 't-statistic', 'p-value']
+        writer = csv.DictWriter(f, fieldnames=header)
+        writer.writeheader()
+        for key, value in ttests.items():
+            writer.writerow({'rf': key, 't-statistic': value.statistic, 'p-value': value.pvalue})
 
 if __name__ == "__main__":
-    queries = pd.read_json("data/cleaned_html_results.json")
-    query_result_readability_formula_mse = pd.DataFrame()
-    grade_predictions_per_readability_formula : Dict[str, List[int]] = {} 
-    for readability_formula in readability_formulas:
-        grade_predictions_per_readability_formula[readability_formula] = []
-    
-    with Bar('Processing', max=len(queries.index)) as bar:
+    for filename in os.listdir("data"):
+        queries = pd.read_json(f"data/{filename}")
+        print(f"Processing {filename}...")
+        for search_engine in ['google', 'bing']:
+            with Bar(f'Calculating readability metrics for {search_engine.capitalize()}', max=len(list(queries.items()))) as bar:
+                html_text_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+                description_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+                for _, query in queries.items():
+                    result_page = query[search_engine]
+                    for result in result_page:
+                        readability_html_text = {}
+                        readability_description = {}
+                        if 'html_text' in result:
+                            readability_html_text = apply_readability_formulas(result['html_text'])
+                        if 'description' in result:
+                            readability_description = apply_readability_formulas(result['description'])
+                        for rf in readability_formulas:
+                                if rf in readability_html_text:
+                                    html_text_grade_predictions[rf].append(readability_result_to_grade(readability_html_text[rf][1]))
+                                else:
+                                    html_text_grade_predictions[rf].append(float('NaN'))
+                                if rf in readability_description:
+                                    description_grade_predictions[rf].append(readability_result_to_grade(readability_description[rf][1]))
+                                else:
+                                    description_grade_predictions[rf].append(float('NaN'))
+                    bar.next()
+            create_plots(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
+            perform_ttests(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
+            
+            
+                            
         
-        for i, query in queries.items():
-            for search_engine_result_page in ['results', 'bing_results']:
-                grade_pred: Dict[str, List[int]] = {}
-                for readability_formula in readability_formulas:
-                    grade_pred[readability_formula] = []
-                for result in query[search_engine_result_page]:
-                    if 'html_text' in result:
-                        readability_results = apply_readability_formulas(result['html_text'])
-                        for readability_formula in readability_formulas:
-                            if readability_formula in readability_results:
-                                grade_pred[readability_formula].append(readability_result_to_grade(readability_results[readability_formula][1]))
-                for readability_formula in readability_formulas:
-                    if len(grade_pred[readability_formula]) == 0:
-                        continue
-                    grade_predictions_per_readability_formula[readability_formula].append(grade_pred[readability_formula])
-                    grade_true = [readability_result_to_grade(query['Grade'])] * len(grade_pred[readability_formula])
-                    mse = mean_squared_error(grade_true, grade_pred[readability_formula]) 
-                    query_result_readability_formula_mse.loc[readability_formula, query['queries']] = mse
-            bar.next()
-        # print(query_result_readability_formula_mse)
-        # Plot the grade predictions for flesch_kincaid. Show the distribution of what the model predicted for the grade level of the query results.
-        def flatten(l: List[List[int]]):
-            return [item for sublist in l for item in sublist]
-    
-    for readability_formula in readability_formulas:
-        grade_predictions_per_readability_formula[readability_formula] = flatten(grade_predictions_per_readability_formula[readability_formula])
-        grade_predictions_per_readability_formula[readability_formula] = [grade_predictions_per_readability_formula[readability_formula].count(i) for i in range(1, 15)]
-        fig = px.line(x=list(range(1, 15)), y=grade_predictions_per_readability_formula[readability_formula], title="Grade predictions for " + readability_formula)
-        fig.write_image(f"plots/grade_predictions_{readability_formula}.png")
+        
+        

@@ -60,4 +60,3 @@ py-readability-metrics==1.4.5
 plotly==5.14.0
 kaleido==0.2.1
 progress==1.6
-```

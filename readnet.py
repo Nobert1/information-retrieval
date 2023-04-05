@@ -13,7 +13,7 @@ from fastai.text.all import *
 if __name__ == '__main__':  
     # Embeddings are from here: https://nlp.stanford.edu/projects/glove/
     # Make sure to have your glove embeddings stored here
-    root_dir = 'C:/Users/gusta/Desktop/TU Delft/Information retrieval/final project/readnet/glove/'
+    root_dir = './glove.6b/'
     # batch_size
     bs = 8
 
