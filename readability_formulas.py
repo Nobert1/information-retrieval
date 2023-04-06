@@ -4,7 +4,7 @@ import pandas as pd
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 from sklearn.metrics import mean_squared_error
-from scipy.stats import ttest_rel
+from scipy.stats import ttest_ind
 from typing import DefaultDict, Dict, Tuple, List
 from matplotlib import pyplot as plt
 import plotly.express as px
@@ -13,6 +13,8 @@ import os
 # Import readability from readability
 from readability import Readability
 from collections import defaultdict
+import csv
+import numpy as np
 
 nltk.download("punkt")
 
@@ -66,7 +68,7 @@ def create_plots(html_text_grade_predictions: DefaultDict[str, List[int]], descr
         create_plot(html_text_grade_prediction, description_grade_prediction, search_engine, filename, rf)
 
 def perform_ttest(html_text_grade_prediction: List[int], description_grade_prediction: List[int]):
-    return ttest_rel(html_text_grade_prediction, description_grade_prediction, nan_policy='omit', alternative='two-sided')
+    return ttest_ind(html_text_grade_prediction, description_grade_prediction, nan_policy='omit', alternative='two-sided', equal_var=False)
 
 def perform_ttests(html_text_grade_predictions: DefaultDict[str, List[int]], description_grade_predictions: DefaultDict[str, List[int]], search_engine: str, filename: str):
     ttests: Dict[str, int] = {}
@@ -78,45 +80,83 @@ def perform_ttests(html_text_grade_predictions: DefaultDict[str, List[int]], des
         ttests[rf] = perform_ttest(html_text_grade_prediction, description_grade_prediction)
     os.makedirs(f"ttests/{search_engine}", exist_ok=True)
     with open(f"ttests/{search_engine}/{os.path.splitext(filename)[0]}.csv", 'w', newline='') as f:
-        import csv
         header = ['rf', 't-statistic', 'p-value']
         writer = csv.DictWriter(f, fieldnames=header)
         writer.writeheader()
         for key, value in ttests.items():
             writer.writerow({'rf': key, 't-statistic': value.statistic, 'p-value': value.pvalue})
 
-if __name__ == "__main__":
-    for filename in os.listdir("data"):
-        queries = pd.read_json(f"data/{filename}")
-        print(f"Processing {filename}...")
-        for search_engine in ['google', 'bing']:
-            with Bar(f'Calculating readability metrics for {search_engine.capitalize()}', max=len(list(queries.items()))) as bar:
-                html_text_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
-                description_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
-                for _, query in queries.items():
-                    result_page = query[search_engine]
-                    for result in result_page:
-                        readability_html_text = {}
-                        readability_description = {}
-                        if 'html_text' in result:
-                            readability_html_text = apply_readability_formulas(result['html_text'])
-                        if 'description' in result:
-                            readability_description = apply_readability_formulas(result['description'])
-                        for rf in readability_formulas:
-                                if rf in readability_html_text:
-                                    html_text_grade_predictions[rf].append(readability_result_to_grade(readability_html_text[rf][1]))
-                                else:
-                                    html_text_grade_predictions[rf].append(float('NaN'))
-                                if rf in readability_description:
-                                    description_grade_predictions[rf].append(readability_result_to_grade(readability_description[rf][1]))
-                                else:
-                                    description_grade_predictions[rf].append(float('NaN'))
-                    bar.next()
-            create_plots(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
-            perform_ttests(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
-            
+def save_readability_results(html_text_grade_predictions: DefaultDict[str, List[int]], description_grade_predictions: DefaultDict[str, List[int]], search_engine: str, filename: str):
+    os.makedirs(f"readability_results/{search_engine}", exist_ok=True)
+    with open(f"readability_results/{search_engine}/{os.path.splitext(filename)[0]}.csv", 'w', newline='') as f:
+        import csv
+        header = ['rf', 'html_text', 'description']
+        writer = csv.DictWriter(f, fieldnames=header)
+        writer.writeheader()
+        for rf in readability_formulas:
+            writer.writerow({'rf': rf, 'html_text': html_text_grade_predictions[rf], 'description': description_grade_predictions[rf]})
+def load_readability_results():
+    for search_engine in ['google', 'bing']:
+        adult_grade_predictions: Dict[str, Tuple[List[int], List[int]]] = {}
+        child_grade_predictions: Dict[str, Tuple[List[int], List[int]]] = {}
+        for filename in os.listdir(f"grade_predictions/{search_engine}"):
+            with open(f"grade_predictions/{search_engine}/{filename}") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if "adult" in filename:
+                        adult_grade_predictions[row['rf']] = ((np.fromstring(row['html_text'].strip('[]'), sep=',').tolist()), np.fromstring(row['description'].strip('[]'), sep=',').tolist())
+                    else:
+                        child_grade_predictions[row['rf']] = (np.fromstring(row['html_text'].strip('[]'), sep=',').tolist(), np.fromstring(row['description'].strip('[]'), sep=',').tolist())
+        adult_html_text_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+        adult_description_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+        child_html_text_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+        child_description_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+        
+        for rf in readability_formulas:
+            adult_html_text_grade_predictions[rf] = adult_grade_predictions[rf][0]
+            adult_description_grade_predictions[rf] = adult_grade_predictions[rf][1]
+            child_html_text_grade_predictions[rf] = child_grade_predictions[rf][0]
+            child_description_grade_predictions[rf] = child_grade_predictions[rf][1]
+        
+        perform_ttests(adult_html_text_grade_predictions, child_html_text_grade_predictions, search_engine, "child-adult-html")
+        perform_ttests(adult_description_grade_predictions, child_description_grade_predictions, search_engine, "child-adult-description")
+
+        
             
                             
         
         
         
+
+if __name__ == "__main__":
+    load_readability_results()
+    # for filename in os.listdir("data"):
+    #     queries = pd.read_json(f"data/{filename}")
+    #     print(f"Processing {filename}...")
+    #     for search_engine in ['google', 'bing']:
+    #         with Bar(f'Calculating readability metrics for {search_engine.capitalize()}', max=len(list(queries.items()))) as bar:
+    #             html_text_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+    #             description_grade_predictions: DefaultDict[str, List[int]] = defaultdict(list)
+    #             for _, query in queries.items():
+    #                 result_page = query[search_engine]
+    #                 for result in result_page:
+    #                     readability_html_text = {}
+    #                     readability_description = {}
+    #                     if 'html_text' in result:
+    #                         readability_html_text = apply_readability_formulas(result['html_text'])
+    #                     if 'description' in result:
+    #                         readability_description = apply_readability_formulas(result['description'])
+    #                     for rf in readability_formulas:
+    #                             if rf in readability_html_text:
+    #                                 html_text_grade_predictions[rf].append(readability_result_to_grade(readability_html_text[rf][1]))
+    #                             else:
+    #                                 html_text_grade_predictions[rf].append(float('NaN'))
+    #                             if rf in readability_description:
+    #                                 description_grade_predictions[rf].append(readability_result_to_grade(readability_description[rf][1]))
+    #                             else:
+    #                                 description_grade_predictions[rf].append(float('NaN'))
+    #                 bar.next()
+    #         create_plots(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
+    #         perform_ttests(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
+    #         save_readability_results(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
+    
