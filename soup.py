@@ -3,6 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
+## sends out http requests and cleans up html.
+
 f = open("adult_queries/non_cleaned_html.json" , "rb" )
 queries = json.load(f)
 f.close()

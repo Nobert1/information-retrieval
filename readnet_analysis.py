@@ -1,6 +1,5 @@
 ## transforms the readnet scores into grades and compares them with the grades of the children conducting the query.
 
-import os
 import pandas as pd
 def get_readnet_grade(readnet_score):
     if readnet_score < 2: 

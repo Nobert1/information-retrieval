@@ -12,9 +12,11 @@ from readnet import *
 from fastai.vision.all import *
 from fastai.text.all import *
 
+### this file is from this repo: https://github.com/vdefont/readnet
+
 if __name__ == '__main__':  
     # Make sure to have your glove embeddings stored here
-    root_dir = 'C:/Users/gusta/Desktop/TU Delft/Information retrieval/final project/readnet/glove/'
+    root_dir = '.'
 
 
     def test_mha():

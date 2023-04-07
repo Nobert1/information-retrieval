@@ -11,10 +11,12 @@ from fastai.vision.all import *
 from fastai.text.all import *
 import torch.nn as nn
 
+### this file is from this repo: https://github.com/vdefont/readnet
+
 if __name__ == '__main__':  
     # Embeddings are from here: https://nlp.stanford.edu/projects/glove/
     # Make sure to have your glove embeddings stored here
-    root_dir = 'C:/Users/gusta/Desktop/TU Delft/Information retrieval/final project/readnet/glove/'
+    root_dir = '.'
     # batch_size
     bs = 32 # number used in article.
 
