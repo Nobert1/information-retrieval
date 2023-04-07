@@ -1,9 +1,9 @@
-rf,t-statistic,p-value
-ari,-3.5516812199940078,0.00046197870172095336
-dale_chall,-4.813658641333606,2.779707639332823e-06
-flesch,-7.056478083416485,1.730713466684454e-11
-coleman_liau,-5.891591684813378,1.3148014783846625e-08
-flesch_kincaid,-5.243296235164089,3.4184433532440133e-07
-gunning_fog,-4.77326025032616,3.142199613679739e-06
-linsear_write,-1.770478978997336,0.07783737718312884
-spache,-2.380050745528538,0.017997306720215142
+Formula,\overline{x_1},\overline{x_2},s_1,s_2,t-statistic,p-value
+Automated Readability Index,10.39,11.51,2.68,2.47,-3.55,0.0
+Dale-Chall Readability Score,12.26,13.22,1.77,1.45,-4.81,0.0
+Flesch Reading Ease,9.7,11.62,2.27,2.22,-7.06,0.0
+Coleman-Liau Index,10.23,11.76,2.22,2.04,-5.89,0.0
+Flesch-Kincaid Grade Level,9.56,11.14,2.53,2.44,-5.24,0.0
+Gunning Fog Index,11.25,12.29,1.83,1.75,-4.77,0.0
+Linsear Write Formula,10.92,11.55,2.89,3.02,-1.77,0.078
+Spache Readability Formula,6.99,7.39,1.27,1.51,-2.38,0.018

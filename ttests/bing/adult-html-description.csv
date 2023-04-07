@@ -1,0 +1,9 @@
+Formula,\overline{x_1},\overline{x_2},s_1,s_2,t-statistic,p-value
+Automated Readability Index,11.51,11.85,2.47,2.96,-1.25,0.213
+Dale-Chall Readability Score,13.22,13.49,1.45,1.13,-2.02,0.045
+Flesch Reading Ease,11.62,11.96,2.22,2.52,-1.41,0.16
+Coleman-Liau Index,11.76,12.14,2.04,2.45,-1.63,0.103
+Flesch-Kincaid Grade Level,11.14,11.52,2.44,3.03,-1.39,0.164
+Gunning Fog Index,12.29,12.34,1.75,2.11,-0.27,0.785
+Linsear Write Formula,11.55,11.4,3.02,3.47,0.46,0.648
+Spache Readability Formula,7.39,8.55,1.51,2.32,-5.96,0.0

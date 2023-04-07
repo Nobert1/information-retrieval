@@ -1,16 +1,12 @@
 from readability import Readability
 import nltk
 import pandas as pd
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
-from sklearn.metrics import mean_squared_error
 from scipy.stats import ttest_ind
 from typing import DefaultDict, Dict, Tuple, List
 from matplotlib import pyplot as plt
 import plotly.express as px
 from progress.bar import Bar
 import os
-# Import readability from readability
 from readability import Readability
 from collections import defaultdict
 import csv
@@ -20,8 +16,9 @@ import shutil
 nltk.download("punkt")
 
 readability_formulas_with_grade_levels = ['ari', 'dale_chall', 'flesch']
-readability_formulas_with_grade_level = ['coleman_liau', 'flesch_kincaid', 'gunning_fog', 'linsear_write', 'spache', 'smog']
+readability_formulas_with_grade_level = ['coleman_liau', 'flesch_kincaid', 'gunning_fog', 'linsear_write', 'spache']
 readability_formulas = readability_formulas_with_grade_levels + readability_formulas_with_grade_level
+readability_formulas_full_names = dict(zip(readability_formulas, ['Automated Readability Index', 'Dale-Chall Readability Score', 'Flesch Reading Ease', 'Coleman-Liau Index', 'Flesch-Kincaid Grade Level', 'Gunning Fog Index', 'Linsear Write Formula', 'Spache Readability Formula']))
 
 def apply_readability_formulas(text: str) -> Dict[str, Tuple[str, str]]:
     text = text.strip()
@@ -33,11 +30,7 @@ def apply_readability_formulas(text: str) -> Dict[str, Tuple[str, str]]:
     for readability_formula in readability_formulas_with_grade_levels:
         results[readability_formula] = (getattr(r, readability_formula)().score, getattr(r, readability_formula)().grade_levels[0])
     for readability_formula in readability_formulas_with_grade_level:
-        if readability_formula == 'smog':
-            if r.statistics()['num_sentences'] >= 30:
-                results['smog'] = (r.smog(all_sentences=True).score, r.smog(all_sentences=True).grade_level)
-        else:
-            results[readability_formula] = (getattr(r, readability_formula)().score, getattr(r, readability_formula)().grade_level)
+        results[readability_formula] = (getattr(r, readability_formula)().score, getattr(r, readability_formula)().grade_level)
     return results
 
 def readability_result_to_grade(grade: str) -> int:
@@ -74,18 +67,20 @@ def perform_ttest(html_text_grade_prediction: List[int], description_grade_predi
 def perform_ttests(grade_predictions1: DefaultDict[str, List[int]], grade_predictions2: DefaultDict[str, List[int]], search_engine: str, filename: str):
     ttests: Dict[str, int] = {}
     for rf in readability_formulas:
-        if rf == 'smog':
-            continue
         grade_prediction1 = grade_predictions1[rf]
         grade_prediction2 = grade_predictions2[rf]
         ttests[rf] = perform_ttest(grade_prediction1, grade_prediction2)
     os.makedirs(f"ttests/{search_engine}", exist_ok=True)
     with open(f"ttests/{search_engine}/{os.path.splitext(filename)[0]}.csv", 'w', newline='') as f:
-        header = ['rf', 't-statistic', 'p-value']
+        header = ['Formula', '\overline{x_1}', '\overline{x_2}', 's_1', 's_2', 't-statistic', 'p-value']
         writer = csv.DictWriter(f, fieldnames=header)
         writer.writeheader()
         for key, value in ttests.items():
-            writer.writerow({'rf': key, 't-statistic': value.statistic, 'p-value': value.pvalue})
+            grade_predictions1_mean = round(np.nanmean(grade_predictions1[key]), 2)
+            grade_predictions2_mean = round(np.nanmean(grade_predictions2[key]), 2)
+            grade_predictions1_std = round(np.nanstd(grade_predictions1[key]), 2)
+            grade_predictions2_std = round(np.nanstd(grade_predictions2[key]), 2)
+            writer.writerow({'Formula': readability_formulas_full_names[key], '\overline{x_1}': grade_predictions1_mean, '\overline{x_2}': grade_predictions2_mean, 's_1': grade_predictions1_std, 's_2': grade_predictions2_std, 't-statistic': round(value.statistic, 2), 'p-value': round(value.pvalue, 3)})
 
 def save_readability_results(html_text_grade_predictions: DefaultDict[str, List[int]], description_grade_predictions: DefaultDict[str, List[int]], search_engine: str, filename: str):
     os.makedirs(f"readability_results/{search_engine}", exist_ok=True)
@@ -97,7 +92,7 @@ def save_readability_results(html_text_grade_predictions: DefaultDict[str, List[
         for rf in readability_formulas:
             writer.writerow({'rf': rf, 'html_text': html_text_grade_predictions[rf], 'description': description_grade_predictions[rf]})
 
-def load_readability_results():
+def perform_adult_child_ttests()():
     for search_engine in ['google', 'bing']:
         adult_grade_predictions: Dict[str, Tuple[List[int], List[int]]] = {}
         child_grade_predictions: Dict[str, Tuple[List[int], List[int]]] = {}
@@ -150,9 +145,10 @@ if __name__ == "__main__":
                                 else:
                                     description_grade_predictions[rf].append(float('NaN'))
                     bar.next()
-            create_plots(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
-            perform_ttests(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
+            group = os.path.splitext(filename)[0].split("_")[0]
+            create_plots(html_text_grade_predictions, description_grade_predictions, search_engine, group)
+            perform_ttests(html_text_grade_predictions, description_grade_predictions, search_engine, group + "-html-description")
             save_readability_results(html_text_grade_predictions, description_grade_predictions, search_engine, filename)
     
-    load_readability_results()
+    perform_adult_child_ttests()()
     shutil.rmtree("readability_results")
