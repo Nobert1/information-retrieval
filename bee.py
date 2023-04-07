@@ -1,46 +1,49 @@
-#  Install the Python Requests library:
-# `pip install requests`
+### scrapes google serp pages using scraping bee.
 import requests
-import urllib.parse
 import json
 
-f = open("kids_queries/kids_queries_dataset_classified_with_grades.json" , "rb" )
-jsonObject = json.load(f)
+api_key = ""
+child_mode_on = False
+
+f = open("" , "rb" )
+results = json.load(f)
 f.close()
 
-queries = []
-i = 0
-for object in jsonObject:
-    queries.append(object["queries"])
-    i += 1
-    if i > 10:
-        break
+results_copy = results
 
-results = {}
-
-def send_request(search_keywords):
-    response = requests.get(
-        url="https://app.scrapingbee.com/api/v1/store/google",
-        params={
-            "api_key": "MFKWOPYWBKVMDJ05EL9K75BAVBVWJ40WKR2ZURMVKLA3E16VH94Q34EAADLC1LGGMH91N8N6LYG4LQRJ",
-            "search": search_keywords,
+def send_request(query):
+    params = {}
+    if child_mode_on:
+        params = {
+            "api_key": api_key,
+            "search": query,
             "add_html": True,
             "nb_results": 10,
             "extra_params": "safe=active"
-        },
+        }
+    else:
+        params = {
+            "api_key": api_key,
+            "search": query,
+            "add_html": True,
+            "nb_results": 10,
+        }
+
+    response = requests.get(
+        url="https://app.scrapingbee.com/api/v1/store/google",
+        params=params,
     )
     content_as_json = json.loads(response.content)
     
     resultsList = []
     if "organic_results" in content_as_json:
         for result in content_as_json['organic_results']:
-            obj = {"url": result['url'], "description": result['description'], "actual_grade": result['Grade']}
-            resultsList.append(obj)
+            results_obj = {"url": result['url'], "description": result["description"]}
+            resultsList.append(results_obj)
     
-    results[search_keywords] = resultsList
-       
-for query in queries:
-    send_request(query)
-
-with open("childs_results", "w") as fp:
-    json.dump(results , fp)
+    results_copy[query]["results"] = resultsList
+    with open("", "w") as fp:
+        json.dump(results_copy , fp)
+    
+for key, dict in results.items():
+    send_request(key)
