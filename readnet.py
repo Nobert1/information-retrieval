@@ -3,19 +3,21 @@ import numpy as np
 from torch import Tensor, nn, tensor
 import math
 import pandas as pd
-import csv
 import nltk
 nltk.download('punkt')
 from nltk.tokenize import sent_tokenize, word_tokenize
 from pathlib import Path
 from fastai.vision.all import *
 from fastai.text.all import *
+import torch.nn as nn
+
 if __name__ == '__main__':  
     # Embeddings are from here: https://nlp.stanford.edu/projects/glove/
     # Make sure to have your glove embeddings stored here
-    root_dir = './glove.6b/'
+    root_dir = 'C:/Users/gusta/Desktop/TU Delft/Information retrieval/final project/readnet/glove/'
     # batch_size
-    bs = 8
+    bs = 32 # number used in article.
+
 
     ## MODEL CODE ##
     class MultiHeadAttention(nn.Module):
@@ -185,7 +187,6 @@ if __name__ == '__main__':
 
     class GloveTokenizer:
         def __init__(self, num):
-            print("dir path" ,root_dir + f'glove.6B.{num}d.txt')
             words = pd.read_csv(
                 root_dir + f'glove.6B.{num}d.txt', header=None, sep=" ", quoting=csv.QUOTE_NONE, usecols=[0]
             ).values
@@ -226,12 +227,9 @@ if __name__ == '__main__':
         docs = [doc + [[]] * (max_doc_len - len(doc)) for doc in docs]
         docs = [[s + [tokenizer.pad_token] * (max_sent_len - len(s)) for s in doc] for doc in docs]
         return Tensor(docs)
-
-
-    ## TRAIN ## (using fastai)
-
+    
     tokenizer = GloveTokenizer(100)
-    embed = GloveEmbedding(100)
+    embed = GloveEmbedding(100)       
 
     def get_splits(data):
         num = len(data)
@@ -281,7 +279,43 @@ if __name__ == '__main__':
         return readnet
 
 
-    learn = Learner(dls=get_dls(bs), model=get_model(), loss_func=MSELossFlat())
-    learn.lr_find()
-    learn.fit_one_cycle(50, 3e-5)
+    run_model = True
+
+    if run_model:
+        ## load data
+        f = open("adult_queries/cleaned_html.json" , "rb" )
+        queries = json.load(f)
+        f.close()
+        ## setup model
+        model = ReadNet(
+            embed=embed,
+            d_model=100, # 200 was originial value, 100 is what they used in the article
+            n_heads=4,
+            n_blocks=6,
+            n_feats_sent=0,
+            n_feats_doc=0,
+        )
+        model.load_state_dict(torch.load('models/50_cycles.pth')['model'])
+        ## not sure if model.eval() is needed.
+        model.eval()
+
+        ## can't do too big entries, else it tries to allocate too much ram. This might be too small, maybe we can do it for query on bing - google basis.
+        duplicate_dict = queries
+        input_keys = ["description", "html_text"] # html_text or description
+        output_keys = ["ReadNet_score_description", "ReadNet_score_html_text"] #ReadNet_score_description or 
+    
+    def get_readnet_value(txt: str) -> str:
+        input_data = prepare_txts([txt], tokenizer)
+        return model.forward(input_data).item()
+    
+    with open("adult_queries/results_with_readnet_score.json", "w", encoding="utf-8") as fp:
+        json.dump(duplicate_dict , fp, ensure_ascii=False)
+
+
+    if run_model == False:
+        ## TRAIN ## (using fastai)
+        learn = Learner(dls=get_dls(bs), model=get_model(), loss_func=MSELossFlat())
+        learn.lr_find()
+        learn.fit_one_cycle(50, 3e-5)
+        learn.save('50_cycles')
     # Result MSE is about 0.40
